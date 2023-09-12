@@ -205,169 +205,176 @@ function easyStatsView()
 function makeEasyStats()
 {
 
-    $visitorsFile = GSDATAOTHERPATH . 'easyStats/visitors.xml';
 
-    if (!is_dir(GSDATAOTHERPATH . 'easyStats/')) {
-        mkdir(GSDATAOTHERPATH . 'easyStats/', 0755);
-        file_put_contents(GSDATAOTHERPATH . 'easyStats/.htaccess', 'Deny from All');
-    };
+    $http_response_code = http_response_code();
 
+    if ($http_response_code !== 404) {
+ 
 
-    // Pobranie adresu IP odwiedzającego
-    $ipAddress = $_SERVER['REMOTE_ADDR'];
+        $visitorsFile = GSDATAOTHERPATH . 'easyStats/visitors.xml';
 
-    $ipAddress = hash('sha256', $ipAddress);
-
-
-    // Aktualna data i czas
-    $currentTimestamp = time();
-
-    // Odczyt bieżących odwiedzających z pliku tymczasowego
-    $currentVisitors = [];
+        if (!is_dir(GSDATAOTHERPATH . 'easyStats/')) {
+            mkdir(GSDATAOTHERPATH . 'easyStats/', 0755);
+            file_put_contents(GSDATAOTHERPATH . 'easyStats/.htaccess', 'Deny from All');
+        };
 
 
-    // Sprawdzenie, czy odwiedzający istnieje na liście bieżących odwiedzających i usunięcie go
-    if (array_key_exists($ipAddress, $currentVisitors)) {
-        unset($currentVisitors[$ipAddress]);
-    }
+        // Pobranie adresu IP odwiedzającego
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+
+        $ipAddress = hash('sha256', $ipAddress);
 
 
-    // Dodanie lub aktualizacja informacji o bieżącym odwiedzającym
-    $currentVisitors[$ipAddress] = $currentTimestamp;
+        // Aktualna data i czas
+        $currentTimestamp = time();
+
+        // Odczyt bieżących odwiedzających z pliku tymczasowego
+        $currentVisitors = [];
 
 
-    // Odczyt istniejących odwiedzających z pliku XML
-    $allVisitors = [];
-    $visitors7Days = [];
-    $visitors30Days = [];
-    $visitors24Hours = [];
+        // Sprawdzenie, czy odwiedzający istnieje na liście bieżących odwiedzających i usunięcie go
+        if (array_key_exists($ipAddress, $currentVisitors)) {
+            unset($currentVisitors[$ipAddress]);
+        }
 
-    if (file_exists($visitorsFile)) {
-        $xml = simplexml_load_file($visitorsFile);
-        foreach ($xml->visitor as $visitor) {
-            $visitorIp = (string) $visitor->ip;
-            $visitorTimestamp = (int) $visitor->timestamp;
-            $allVisitors[] = $visitorIp;
 
-            if ($currentTimestamp - $visitorTimestamp <= 7 * 24 * 60 * 60) {
-                $visitors7Days[] = $visitorIp;
-            }
+        // Dodanie lub aktualizacja informacji o bieżącym odwiedzającym
+        $currentVisitors[$ipAddress] = $currentTimestamp;
 
-            if ($currentTimestamp - $visitorTimestamp <= 30 * 24 * 60 * 60) {
-                $visitors30Days[] = $visitorIp;
-            }
 
-            if ($currentTimestamp - $visitorTimestamp <= 24 * 60 * 60) {
-                $visitors24Hours[] = $visitorIp;
+        // Odczyt istniejących odwiedzających z pliku XML
+        $allVisitors = [];
+        $visitors7Days = [];
+        $visitors30Days = [];
+        $visitors24Hours = [];
+
+        if (file_exists($visitorsFile)) {
+            $xml = simplexml_load_file($visitorsFile);
+            foreach ($xml->visitor as $visitor) {
+                $visitorIp = (string) $visitor->ip;
+                $visitorTimestamp = (int) $visitor->timestamp;
+                $allVisitors[] = $visitorIp;
+
+                if ($currentTimestamp - $visitorTimestamp <= 7 * 24 * 60 * 60) {
+                    $visitors7Days[] = $visitorIp;
+                }
+
+                if ($currentTimestamp - $visitorTimestamp <= 30 * 24 * 60 * 60) {
+                    $visitors30Days[] = $visitorIp;
+                }
+
+                if ($currentTimestamp - $visitorTimestamp <= 24 * 60 * 60) {
+                    $visitors24Hours[] = $visitorIp;
+                }
             }
         }
-    }
 
-    // Dodanie nowego odwiedzającego do pliku XML
-    if (!in_array($ipAddress, $allVisitors)) {
-        $xml = new SimpleXMLElement('<visitors></visitors>');
-        foreach ($allVisitors as $visitorIp) {
-            $visitor = $xml->addChild('visitor');
-            $visitor->addChild('ip', $visitorIp);
-            $visitor->addChild('timestamp', $currentTimestamp);
-        }
-        $newVisitor = $xml->addChild('visitor');
-        $newVisitor->addChild('ip', $ipAddress);
-        $newVisitor->addChild('timestamp', $currentTimestamp);
-        $xml->asXML($visitorsFile);
-    }
-
-    // Pobranie liczby unikalnych odwiedzających
-    $uniqueAllVisitors = count(array_unique($allVisitors));
-    $uniqueVisitors7Days = count(array_unique($visitors7Days));
-    $uniqueVisitors30Days = count(array_unique($visitors30Days));
-    $uniqueVisitors24Hours = count(array_unique($visitors24Hours));
-
-    // Pobranie liczby obecnie odwiedzających
-    $currentVisitorsCount = count($currentVisitors);
-
-
-
-    $pagesFile = GSDATAOTHERPATH . 'easyStats/pagesCount.xml';
-
-
-    // Pobranie bieżącego adresu URL
-    $currentUrl = $_SERVER['REQUEST_URI'];
-
-    // Pobranie adresu IP odwiedzającego
-    $ipAddress = $_SERVER['REMOTE_ADDR'];
-    $ipAddress = hash('sha256', $ipAddress);
-
-
-    // Aktualna data i czas
-    $currentTimestamp = time();
-
-    // Data 30 dni wstecz
-    $thirtyDaysAgo = strtotime('-30 days');
-
-    // Odczyt istniejących odwiedzanych stron z pliku XML
-    $pages = [];
-    if (file_exists($pagesFile)) {
-        $xml = simplexml_load_file($pagesFile);
-        foreach ($xml->page as $page) {
-            $pageUrl = (string) $page->url;
-            $pageVisits = (int) $page->visits;
-            $pageUniqueVisitors = explode(',', (string) $page->unique_visitors);
-            $pageTimestamps = explode(',', (string) $page->timestamps);
-            $pages[$pageUrl] = [
-                'visits' => $pageVisits,
-                'unique_visitors' => $pageUniqueVisitors,
-                'timestamps' => $pageTimestamps
-            ];
-        }
-    }
-
-    // Sprawdzenie, czy bieżący adres URL zawiera "?search="
-    $isSearchPage = strpos($currentUrl, '?search=') !== false;
-
-    // Zwiększenie licznika odwiedzin i unikalnych odwiedzin dla aktualnej strony (jeśli to nie jest strona z wyszukiwaniem)
-    if (!$isSearchPage) {
-        if (array_key_exists($currentUrl, $pages)) {
-            $pages[$currentUrl]['visits']++;
-
-            if (!in_array($ipAddress, $pages[$currentUrl]['unique_visitors'])) {
-                $pages[$currentUrl]['unique_visitors'][] = $ipAddress;
+        // Dodanie nowego odwiedzającego do pliku XML
+        if (!in_array($ipAddress, $allVisitors)) {
+            $xml = new SimpleXMLElement('<visitors></visitors>');
+            foreach ($allVisitors as $visitorIp) {
+                $visitor = $xml->addChild('visitor');
+                $visitor->addChild('ip', $visitorIp);
+                $visitor->addChild('timestamp', $currentTimestamp);
             }
-
-            $pages[$currentUrl]['timestamps'][] = $currentTimestamp;
-        } else {
-            $pages[$currentUrl] = [
-                'visits' => 1,
-                'unique_visitors' => [$ipAddress],
-                'timestamps' => [$currentTimestamp]
-            ];
+            $newVisitor = $xml->addChild('visitor');
+            $newVisitor->addChild('ip', $ipAddress);
+            $newVisitor->addChild('timestamp', $currentTimestamp);
+            $xml->asXML($visitorsFile);
         }
-    }
 
-    // Usunięcie starszych znaczników czasu niż 30 dni temu
-    foreach ($pages as $pageUrl => $pageData) {
-        $filteredTimestamps = array_filter($pageData['timestamps'], function ($timestamp) use ($thirtyDaysAgo) {
-            return $timestamp >= $thirtyDaysAgo;
+        // Pobranie liczby unikalnych odwiedzających
+        $uniqueAllVisitors = count(array_unique($allVisitors));
+        $uniqueVisitors7Days = count(array_unique($visitors7Days));
+        $uniqueVisitors30Days = count(array_unique($visitors30Days));
+        $uniqueVisitors24Hours = count(array_unique($visitors24Hours));
+
+        // Pobranie liczby obecnie odwiedzających
+        $currentVisitorsCount = count($currentVisitors);
+
+
+
+        $pagesFile = GSDATAOTHERPATH . 'easyStats/pagesCount.xml';
+
+
+        // Pobranie bieżącego adresu URL
+        $currentUrl = $_SERVER['REQUEST_URI'];
+
+        // Pobranie adresu IP odwiedzającego
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+        $ipAddress = hash('sha256', $ipAddress);
+
+
+        // Aktualna data i czas
+        $currentTimestamp = time();
+
+        // Data 30 dni wstecz
+        $thirtyDaysAgo = strtotime('-30 days');
+
+        // Odczyt istniejących odwiedzanych stron z pliku XML
+        $pages = [];
+        if (file_exists($pagesFile)) {
+            $xml = simplexml_load_file($pagesFile);
+            foreach ($xml->page as $page) {
+                $pageUrl = (string) $page->url;
+                $pageVisits = (int) $page->visits;
+                $pageUniqueVisitors = explode(',', (string) $page->unique_visitors);
+                $pageTimestamps = explode(',', (string) $page->timestamps);
+                $pages[$pageUrl] = [
+                    'visits' => $pageVisits,
+                    'unique_visitors' => $pageUniqueVisitors,
+                    'timestamps' => $pageTimestamps
+                ];
+            }
+        }
+
+        // Sprawdzenie, czy bieżący adres URL zawiera "?search="
+        $isSearchPage = strpos($currentUrl, '?search=') !== false;
+
+        // Zwiększenie licznika odwiedzin i unikalnych odwiedzin dla aktualnej strony (jeśli to nie jest strona z wyszukiwaniem)
+        if (!$isSearchPage) {
+            if (array_key_exists($currentUrl, $pages)) {
+                $pages[$currentUrl]['visits']++;
+
+                if (!in_array($ipAddress, $pages[$currentUrl]['unique_visitors'])) {
+                    $pages[$currentUrl]['unique_visitors'][] = $ipAddress;
+                }
+
+                $pages[$currentUrl]['timestamps'][] = $currentTimestamp;
+            } else {
+                $pages[$currentUrl] = [
+                    'visits' => 1,
+                    'unique_visitors' => [$ipAddress],
+                    'timestamps' => [$currentTimestamp]
+                ];
+            }
+        }
+
+        // Usunięcie starszych znaczników czasu niż 30 dni temu
+        foreach ($pages as $pageUrl => $pageData) {
+            $filteredTimestamps = array_filter($pageData['timestamps'], function ($timestamp) use ($thirtyDaysAgo) {
+                return $timestamp >= $thirtyDaysAgo;
+            });
+            $pages[$pageUrl]['timestamps'] = $filteredTimestamps;
+        }
+
+        // Aktualizacja pliku XML z informacjami o odwiedzanych stronach
+        $xml = new SimpleXMLElement('<pages></pages>');
+        foreach ($pages as $pageUrl => $pageData) {
+            $page = $xml->addChild('page');
+            $page->addChild('url', $pageUrl);
+            $page->addChild('visits', $pageData['visits']);
+            $page->addChild('unique_visitors', implode(',', $pageData['unique_visitors']));
+            $page->addChild('timestamps', implode(',', $pageData['timestamps']));
+        }
+        $xml->asXML($pagesFile);
+
+        // Sortowanie stron według liczby odwiedzin w odwrotnej kolejności
+        uasort($pages, function ($a, $b) {
+            return $b['visits'] <=> $a['visits'];
         });
-        $pages[$pageUrl]['timestamps'] = $filteredTimestamps;
-    }
 
-    // Aktualizacja pliku XML z informacjami o odwiedzanych stronach
-    $xml = new SimpleXMLElement('<pages></pages>');
-    foreach ($pages as $pageUrl => $pageData) {
-        $page = $xml->addChild('page');
-        $page->addChild('url', $pageUrl);
-        $page->addChild('visits', $pageData['visits']);
-        $page->addChild('unique_visitors', implode(',', $pageData['unique_visitors']));
-        $page->addChild('timestamps', implode(',', $pageData['timestamps']));
-    }
-    $xml->asXML($pagesFile);
-
-    // Sortowanie stron według liczby odwiedzin w odwrotnej kolejności
-    uasort($pages, function ($a, $b) {
-        return $b['visits'] <=> $a['visits'];
-    });
-
-    // Pobranie listy 100 najczęściej odwiedzanych stron z ostatnich 30 dni
-    $top100Pages = $pages;
+        // Pobranie listy 100 najczęściej odwiedzanych stron z ostatnich 30 dni
+        $top100Pages = $pages;
+    };
 };
