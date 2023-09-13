@@ -209,7 +209,7 @@ function makeEasyStats()
     $http_response_code = http_response_code();
 
     if ($http_response_code !== 404) {
- 
+
 
         $visitorsFile = GSDATAOTHERPATH . 'easyStats/visitors.xml';
 
@@ -275,7 +275,7 @@ function makeEasyStats()
             foreach ($allVisitors as $visitorIp) {
                 $visitor = $xml->addChild('visitor');
                 $visitor->addChild('ip', $visitorIp);
-                $visitor->addChild('timestamp', $currentTimestamp);
+                $visitor->addChild('timestamp', $visitorTimestamp);
             }
             $newVisitor = $xml->addChild('visitor');
             $newVisitor->addChild('ip', $ipAddress);
@@ -350,13 +350,7 @@ function makeEasyStats()
             }
         }
 
-        // Usunięcie starszych znaczników czasu niż 30 dni temu
-        foreach ($pages as $pageUrl => $pageData) {
-            $filteredTimestamps = array_filter($pageData['timestamps'], function ($timestamp) use ($thirtyDaysAgo) {
-                return $timestamp >= $thirtyDaysAgo;
-            });
-            $pages[$pageUrl]['timestamps'] = $filteredTimestamps;
-        }
+
 
         // Aktualizacja pliku XML z informacjami o odwiedzanych stronach
         $xml = new SimpleXMLElement('<pages></pages>');
