@@ -217,6 +217,9 @@ function makeEasyStats()
         if (!is_dir(GSDATAOTHERPATH . 'easyStats/')) {
             mkdir(GSDATAOTHERPATH . 'easyStats/', 0755);
             file_put_contents(GSDATAOTHERPATH . 'easyStats/.htaccess', 'Deny from All');
+            file_put_contents(GSDATAOTHERPATH . 'easyStats/visitors.xml', '<?xml version="1.0"?>
+            <visitors></visitors>
+            ');
         }
 
         // Get the visitor's IP address
@@ -355,6 +358,4 @@ function makeEasyStats()
         // Get a list of the top 100 most visited pages in the last 30 days
         $top100Pages = $pages;
     }
-
-
 };
