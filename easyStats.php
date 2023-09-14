@@ -47,6 +47,7 @@ function easyStatsView()
     $visitors7Days = [];
     $visitors30Days = [];
     $visitors24Hours = [];
+    $visitors5Minutes = [];
 
     if (file_exists($visitorsFile)) {
         $xml = simplexml_load_file($visitorsFile);
@@ -66,6 +67,10 @@ function easyStatsView()
             if ($currentTimestamp - $visitorTimestamp <= 24 * 60 * 60) {
                 $visitors24Hours[] = $visitorIp;
             }
+
+            if ($currentTimestamp - $visitorTimestamp <= 5 * 60) {
+                $visitors5Minutes[] = $visitorIp;
+            }
         }
     }
 
@@ -74,7 +79,7 @@ function easyStatsView()
     $uniqueVisitors7Days = count(array_unique($visitors7Days));
     $uniqueVisitors30Days = count(array_unique($visitors30Days));
     $uniqueVisitors24Hours = count(array_unique($visitors24Hours));
-
+    $uniqueVisitors5Minutes = count(array_unique($visitors5Minutes));
     // Pobranie liczby obecnie odwiedzających
     $currentVisitorsCount = count($currentVisitors);
 
@@ -95,6 +100,7 @@ function easyStatsView()
     echo "<tr><td>Unique user from last 30 days: $uniqueVisitors30Days</tr></td>";
     echo "<tr><td>Unique user from last 7 days: $uniqueVisitors7Days</tr></td>";
     echo "<tr><td>Unique user from last 24hours: $uniqueVisitors24Hours </tr></td>";
+    echo "<tr><td>Unique user from last 5 minutes:" . $uniqueVisitors5Minutes . "</tr></td>";
     echo '</table>';
 
 
@@ -175,10 +181,10 @@ function easyStatsView()
   new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['Unique user All the time', 'Unique user from last 30 days:', 'Unique user from last 7 days:','Unique user from last 24hours'],
+      labels: ['Unique user All the time', 'Unique user last 30 days:', 'Unique user last 7 days:','Unique user last 24hours','Unique user last 5 minutes'],
       datasets: [{
         label: 'Views on website',
-        data: [$uniqueAllVisitors,$uniqueVisitors30Days,$uniqueVisitors7Days,$uniqueVisitors24Hours],
+        data: [$uniqueAllVisitors,$uniqueVisitors30Days,$uniqueVisitors7Days,$uniqueVisitors24Hours,$uniqueVisitors5Minutes],
         borderWidth: 1
       }]
     },
@@ -201,48 +207,37 @@ function easyStatsView()
 </div>';
 }
 
-
 function makeEasyStats()
 {
-
-
     $http_response_code = http_response_code();
 
     if ($http_response_code !== 404) {
-
-
         $visitorsFile = GSDATAOTHERPATH . 'easyStats/visitors.xml';
 
         if (!is_dir(GSDATAOTHERPATH . 'easyStats/')) {
             mkdir(GSDATAOTHERPATH . 'easyStats/', 0755);
             file_put_contents(GSDATAOTHERPATH . 'easyStats/.htaccess', 'Deny from All');
-        };
+        }
 
-
-        // Pobranie adresu IP odwiedzającego
+        // Get the visitor's IP address
         $ipAddress = $_SERVER['REMOTE_ADDR'];
-
         $ipAddress = hash('sha256', $ipAddress);
 
-
-        // Aktualna data i czas
+        // Current date and time
         $currentTimestamp = time();
 
-        // Odczyt bieżących odwiedzających z pliku tymczasowego
+        // Read current visitors from a temporary file
         $currentVisitors = [];
 
-
-        // Sprawdzenie, czy odwiedzający istnieje na liście bieżących odwiedzających i usunięcie go
+        // Check if the visitor exists in the list of current visitors and remove them
         if (array_key_exists($ipAddress, $currentVisitors)) {
             unset($currentVisitors[$ipAddress]);
         }
 
-
-        // Dodanie lub aktualizacja informacji o bieżącym odwiedzającym
+        // Add or update information about the current visitor
         $currentVisitors[$ipAddress] = $currentTimestamp;
 
-
-        // Odczyt istniejących odwiedzających z pliku XML
+        // Read existing visitors from an XML file
         $allVisitors = [];
         $visitors7Days = [];
         $visitors30Days = [];
@@ -269,49 +264,40 @@ function makeEasyStats()
             }
         }
 
-        // Dodanie nowego odwiedzającego do pliku XML
+        // Add a new visitor to the XML file
         if (!in_array($ipAddress, $allVisitors)) {
-            $xml = new SimpleXMLElement('<visitors></visitors>');
-            foreach ($allVisitors as $visitorIp) {
-                $visitor = $xml->addChild('visitor');
-                $visitor->addChild('ip', $visitorIp);
-                $visitor->addChild('timestamp', $visitorTimestamp);
-            }
+            $xml = simplexml_load_file($visitorsFile);
             $newVisitor = $xml->addChild('visitor');
             $newVisitor->addChild('ip', $ipAddress);
             $newVisitor->addChild('timestamp', $currentTimestamp);
             $xml->asXML($visitorsFile);
         }
 
-        // Pobranie liczby unikalnych odwiedzających
+        // Get the number of unique visitors
         $uniqueAllVisitors = count(array_unique($allVisitors));
         $uniqueVisitors7Days = count(array_unique($visitors7Days));
         $uniqueVisitors30Days = count(array_unique($visitors30Days));
         $uniqueVisitors24Hours = count(array_unique($visitors24Hours));
 
-        // Pobranie liczby obecnie odwiedzających
+        // Get the current number of visitors
         $currentVisitorsCount = count($currentVisitors);
-
-
 
         $pagesFile = GSDATAOTHERPATH . 'easyStats/pagesCount.xml';
 
-
-        // Pobranie bieżącego adresu URL
+        // Get the current URL
         $currentUrl = $_SERVER['REQUEST_URI'];
 
-        // Pobranie adresu IP odwiedzającego
+        // Get the visitor's IP address
         $ipAddress = $_SERVER['REMOTE_ADDR'];
         $ipAddress = hash('sha256', $ipAddress);
 
-
-        // Aktualna data i czas
+        // Current date and time
         $currentTimestamp = time();
 
-        // Data 30 dni wstecz
+        // Date 30 days ago
         $thirtyDaysAgo = strtotime('-30 days');
 
-        // Odczyt istniejących odwiedzanych stron z pliku XML
+        // Read existing visited pages from an XML file
         $pages = [];
         if (file_exists($pagesFile)) {
             $xml = simplexml_load_file($pagesFile);
@@ -328,10 +314,10 @@ function makeEasyStats()
             }
         }
 
-        // Sprawdzenie, czy bieżący adres URL zawiera "?search="
+        // Check if the current URL contains "?search="
         $isSearchPage = strpos($currentUrl, '?search=') !== false;
 
-        // Zwiększenie licznika odwiedzin i unikalnych odwiedzin dla aktualnej strony (jeśli to nie jest strona z wyszukiwaniem)
+        // Increase the visit and unique visitor count for the current page (if it's not a search page)
         if (!$isSearchPage) {
             if (array_key_exists($currentUrl, $pages)) {
                 $pages[$currentUrl]['visits']++;
@@ -350,9 +336,7 @@ function makeEasyStats()
             }
         }
 
-
-
-        // Aktualizacja pliku XML z informacjami o odwiedzanych stronach
+        // Update the XML file with information about visited pages
         $xml = new SimpleXMLElement('<pages></pages>');
         foreach ($pages as $pageUrl => $pageData) {
             $page = $xml->addChild('page');
@@ -363,12 +347,14 @@ function makeEasyStats()
         }
         $xml->asXML($pagesFile);
 
-        // Sortowanie stron według liczby odwiedzin w odwrotnej kolejności
+        // Sort pages by visit count in descending order
         uasort($pages, function ($a, $b) {
             return $b['visits'] <=> $a['visits'];
         });
 
-        // Pobranie listy 100 najczęściej odwiedzanych stron z ostatnich 30 dni
+        // Get a list of the top 100 most visited pages in the last 30 days
         $top100Pages = $pages;
-    };
+    }
+
+
 };
